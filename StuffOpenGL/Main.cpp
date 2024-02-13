@@ -170,11 +170,6 @@ int main()
 	//uncomment this to draw in wireframe polygons
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	float xMaxBorder = 1;
-	float posX = 0.1;
-	float xSpeed = 0.01;
-	bool moveRight = true;
-
 	//delta time
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
@@ -202,23 +197,14 @@ int main()
 		//activate shader
 		ourShader.Use();
 		
-		if (posX < xMaxBorder && moveRight)
-		{
-			posX += xSpeed;
-		}
-		else
-		{
-			moveRight = false;
-			posX -= xSpeed;
-			if (posX < -xMaxBorder)
-				moveRight = true;
-		}
-
 		//matrix transformations
 		glm::mat4 trans = glm::mat4(1.0f);
-		trans = glm::scale(trans, glm::vec3(1.0f, 1.0f, 1.0f));
-		trans = glm::translate(trans, glm::vec3(posX, -0.5f, 0.0f));
-		trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+		//trans = glm::translate(trans, glm::vec3(0.0f, -0.5f, 0.0f));
+		//trans = glm::scale(trans, glm::vec3(0.5f, 0.5f, 1.0f));
+		//trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+		float scaleFactor = abs(sin(glfwGetTime()));
+		trans = glm::scale(trans, glm::vec3(scaleFactor, scaleFactor, scaleFactor));
 
 		//get matrix's uniform and set value
 		unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
