@@ -1,2 +1,0 @@
-C:\Dev\StuffOpenGL\x64\Debug\StuffOpenGL.exe
-C:\Dev\Funky_OpenGL_Stuff\StuffOpenGL\x64\Debug\StuffOpenGL.exe
