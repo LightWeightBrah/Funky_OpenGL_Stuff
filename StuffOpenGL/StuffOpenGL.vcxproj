@@ -158,8 +158,10 @@
     <ClInclude Include="Shader.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shader.frag" />
-    <None Include="Shader.vert" />
+    <None Include="Colors.frag" />
+    <None Include="Colors.vert" />
+    <None Include="LightCube.frag" />
+    <None Include="LightCube.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="chad.png" />

@@ -14,5 +14,5 @@ void main()
 {
 	//we read the multiplication from right to left (model,view,projection)
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
-	TexCoord = aTexCoord;
+	//TexCoord = aTexCoord;
 };
