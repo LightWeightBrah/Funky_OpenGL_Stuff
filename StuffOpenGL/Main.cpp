@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Shader.h"
+#include "Camera.h"
 
 #include <iostream>
 
@@ -21,16 +22,10 @@ const unsigned int SCR_HEIGHT = 600;
 float deltaTime = 0.0f; //time between current frame and last frame
 float lastFrame = 0.0f; //time of last frame
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+float mouseLastX = SCR_WIDTH / 2.0f;
+float mouseLastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
-float yaw = -90.0f; //yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left
-float pitch = 0.0f;
-float mouseLastX = SCR_WIDTH / 2;
-float mouseLastY = SCR_HEIGHT / 2;
-float fieldOfView = 45.0f;
 
 int main()
 {
@@ -48,7 +43,12 @@ int main()
 	}
 
 	glfwMakeContextCurrent(window);
+	//callbacks
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+	//input settings
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
@@ -56,11 +56,8 @@ int main()
 		return -1;
 	}
 		
-	int nrAttributes;
-	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
-	std::cout << "Maximum nr of vertex attributues supported: " << nrAttributes << std::endl;
-
-	Shader ourShader("Shader.vert", "Shader.frag");
+	//global opengl settings
+	glEnable(GL_DEPTH_TEST);
 
 	float vertices[] = {
 		//vertices pos		  //texture coords
@@ -123,15 +120,9 @@ int main()
 	unsigned int indices[] = {
 		0, 1, 2,
 		2, 3, 0
-
 	};
 
-	float texCoords[] = {
-		0.0f, 0.0f, //lower left corner
-		1.0f, 0.0f, //lower right corner
-		0.5f, 1.0f  //top center corner
-	};	
-
+	Shader ourShader("Shader.vert", "Shader.frag");
 
 	unsigned int VAO;
 	glGenVertexArrays(1, &VAO);
@@ -142,10 +133,11 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	unsigned int EBO;
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	//element buffer
+	//unsigned int EBO;
+	//glGenBuffers(1, &EBO);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 	//position attribute
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
@@ -154,22 +146,20 @@ int main()
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
+	//TEXTURE 1
 	unsigned int texture1;
 	glGenTextures(1, &texture1);
 	glBindTexture(GL_TEXTURE_2D, texture1);
-
-	//set texture wrapping/filtering options to the currently bound gl_texture_2d
+	//set texture wrapping options
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//set texture filtering options
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	int width;
-	int height;
-	int nrChannels;
-
+	//load image
+	int width, height, nrChannels;
 	stbi_set_flip_vertically_on_load(true);
-
 	unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
 	if (data)
 	{
@@ -182,16 +172,20 @@ int main()
 	{
 		std::cout << "Failed to load texture " << std::endl;
 	}
+	stbi_image_free(data);
 
+	//TEXTURE 2
 	unsigned int texture2;
 	glGenTextures(1, &texture2);
 	glBindTexture(GL_TEXTURE_2D, texture2);
-
+	//set texture wrapping options
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//set texture filtering options
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+	//load image
 	data = stbi_load("chad.png", &width, &height, &nrChannels, 0);
 	if (data)
 	{
@@ -202,27 +196,11 @@ int main()
 	{
 		std::cout << "Failed to load texture " << std::endl;
 	}
+	stbi_image_free(data);
 
 	ourShader.Use();
 	ourShader.SetInt("texture1", 0);
 	ourShader.SetInt("texture2", 1);
-
-	//glm::vec4 vec(1.0f, 0.0f, 0.0f, 1.0f);
-	//glm::mat4 trans = glm::mat4(1.0f); //identity matrix
-	////trans = glm::translate(trans, glm::vec3(1.0f, 1.0f, 0.0f));
-	////vec = trans * vec;
-	////std::cout << vec.x << vec.y << vec.z << vec.w << std::endl;
-	//trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
-	//trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-	//unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
-	//glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
-	//glUniformMatrix4fv 1:uniform's location 2:how many matricies send 3:do we want to transpose matrix,4:data
-	
-
-	//after generating texture and mipmaps its good practice to free image memory
-	stbi_image_free(data);
-
-
 
 	//unbind
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -231,15 +209,9 @@ int main()
 
 	//uncomment this to draw in wireframe polygons
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	
-
-	glEnable(GL_DEPTH_TEST);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetScrollCallback(window, scroll_callback);
 
 	//rendering loop
-	while (!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(window))	
 	{
 		//calculate delta time
 		float currentFrame = glfwGetTime();
@@ -261,18 +233,14 @@ int main()
 		//activate shader
 		ourShader.Use();
 		
-		glm::mat4 view = glm::mat4(1.0f);
-		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-		//we're translating the scene in the reverse direction of where we want to move
-		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-		ourShader.SetMat4("view", view);
-		
-		glm::mat4 projection = glm::mat4(1.0f);
-		projection = glm::perspective(glm::radians(fieldOfView), float(SCR_WIDTH) / float(SCR_HEIGHT), 0.1f, 100.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.fieldOfView), float(SCR_WIDTH) / float(SCR_HEIGHT), 0.1f, 100.0f);
 		ourShader.SetMat4("projection", projection);
 		
+		glm::mat4 view = camera.GetViewMatrix();
+		ourShader.SetMat4("view", view);
+		
+		//render boxes
 		glBindVertexArray(VAO);
-
 		for (unsigned int i = 0; i < 10; i++)
 		{
 			glm::mat4 model = glm::mat4(1.0f);
@@ -283,18 +251,15 @@ int main()
 
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
-		//render square
-		//glDrawArrays(GL_TRIANGLES, 0, 36);
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);	
-
-		//checck and call events and swap buffers
+		
+		//check and call events and swap buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
+	//glDeleteBuffers(1, &EBO);
 	ourShader.Delete();
 
 	glfwTerminate();
@@ -311,15 +276,16 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	float cameraSpeed = 2.5f * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		cameraPos += cameraFront * cameraSpeed;
+		camera.ProcessKeyboard(FORWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		cameraPos -= cameraFront * cameraSpeed;
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) //we use glm::normalize to make sure the length of vector is 1
-		cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+		camera.ProcessKeyboard(BACKWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+		camera.ProcessKeyboard(RIGHT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		camera.ProcessKeyboard(UP, deltaTime);
 }
 
 void mouse_callback(GLFWwindow* window, double xPos, double yPos)
@@ -333,33 +299,14 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos)
 
 	float xOffset = xPos - mouseLastX;
 	float yOffset = mouseLastY - yPos; //reversed since y coordinates range from bottom to top
+
 	mouseLastX = xPos;
 	mouseLastY = yPos;
-
-	const float sensitivity = 0.1f;
-	xOffset *= sensitivity;
-	yOffset *= sensitivity;
-
-	yaw += xOffset;
-	pitch += yOffset;
-
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
-
-	glm::vec3 direction;
-	direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-	direction.y = sin(glm::radians(pitch));
-	direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-	cameraFront = glm::normalize(direction);
+	
+	camera.ProcessMouseMovement(xOffset, yOffset);
 }
 
 void scroll_callback(GLFWwindow* window, double xOffset, double yOffset)
 {
-	fieldOfView -= (float)yOffset;
-	if (fieldOfView < 1.0f)
-		fieldOfView = 1.0f;
-	if (fieldOfView > 45.0f)
-		fieldOfView = 45.0f;
+	camera.ProcessMouseScroll(yOffset);
 }
